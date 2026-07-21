@@ -22,7 +22,6 @@ type Weapon = {
   image: string;
   rollStatus: string;
   rolls: Roll[];
-  designatedPage?: { url: string };
 };
 
 const weapons = godRollData.weapons as Weapon[];
@@ -94,7 +93,6 @@ function WeaponCard({ weapon, featuredCard = false }: { weapon: Weapon; featured
             <div><dt>Last update</dt><dd>{weapon.lastUpdate}</dd></div>
           </dl>
         )}
-        {weapon.designatedPage?.url && <a className="source-link" href={weapon.designatedPage.url} target="_blank" rel="noreferrer">VIEW FULL INTEL ↗</a>}
       </div>
     </article>
   );

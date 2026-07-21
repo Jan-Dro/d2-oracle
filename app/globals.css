@@ -81,8 +81,6 @@ dl { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:0; position:r
 dl div { border-top:1px solid var(--line); padding-top:10px; }
 dt { color:#667d7e; font:8px var(--font-mono); letter-spacing:.12em; text-transform:uppercase; }
 dd { margin:5px 0 0; font:10px var(--font-mono); color:var(--paper); }
-.source-link { position:relative; z-index:2; display:inline-block; margin-top:18px; color:var(--lime); font:9px var(--font-mono); letter-spacing:.12em; }
-.source-link:hover { text-decoration:underline; }
 .no-results { border:1px solid var(--line); padding:56px; text-align:center; background:rgba(7,18,22,.72); }
 .no-results > span { color:var(--violet); font:10px var(--font-mono); letter-spacing:.25em; }
 .no-results h3 { font-family:Impact,"Arial Narrow",sans-serif; font-size:30px; text-transform:uppercase; letter-spacing:.04em; margin:12px 0 8px; }
