@@ -38,11 +38,14 @@ function preferredRoll(weapon: Weapon) {
 
 function rollPerks(roll?: Roll) {
   if (!roll) return [];
-  return Object.entries(roll.fields).slice(0, 4).map(([slot, values]) => ({ slot, value: values.slice(0, 2).join(" / ") }));
+  return Object.entries(roll.fields).map(([slot, values]) => ({ slot: slot.replace(/:$/, ""), value: values.join(" / ") }));
 }
 
 function WeaponCard({ weapon, featuredCard = false }: { weapon: Weapon; featuredCard?: boolean }) {
-  const roll = preferredRoll(weapon);
+  const modeRolls = weapon.rolls.filter((roll) => roll.mode === "pve" || roll.mode === "pvp");
+  const fallbackRoll = preferredRoll(weapon);
+  const [activeMode, setActiveMode] = useState(fallbackRoll?.mode ?? "general");
+  const roll = modeRolls.find((candidate) => candidate.mode === activeMode) ?? fallbackRoll;
   const perks = rollPerks(roll);
 
   return (
@@ -61,7 +64,23 @@ function WeaponCard({ weapon, featuredCard = false }: { weapon: Weapon; featured
         <p className="archetype">{weapon.ammo} // {weapon.type}</p>
         {roll ? (
           <>
-            <p className="roll-heading">{roll.heading}</p>
+            {modeRolls.length > 0 && (
+              <div className="roll-tabs" role="group" aria-label={`${weapon.weapon} roll mode`}>
+                {modeRolls.map((candidate) => (
+                  <button
+                    type="button"
+                    className={candidate.mode === roll.mode ? "active" : ""}
+                    aria-pressed={candidate.mode === roll.mode}
+                    onClick={() => setActiveMode(candidate.mode)}
+                    key={candidate.mode}
+                  >
+                    <span className={`mode-dot ${candidate.mode}`} />
+                    {candidate.mode.toUpperCase()} ROLL
+                  </button>
+                ))}
+              </div>
+            )}
+            <p className={`roll-heading ${roll.mode}`}>{roll.heading}</p>
             <div className="perk-list">
               {perks.map(({ slot, value }) => (
                 <div className="perk" key={slot}><b>{slot}</b><span>{value}</span></div>
