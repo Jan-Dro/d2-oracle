@@ -181,6 +181,16 @@ export default function Home() {
             <p>SEARCH: “{submitted}”</p>
           </div>
           {results.length ? <>
+            <div className="results-toolbar">
+              <span>SHOWING {(currentPage - 1) * RESULTS_PER_PAGE + 1}–{Math.min(currentPage * RESULTS_PER_PAGE, results.length)} OF {results.length}</span>
+              {totalPages > 1 && (
+                <nav className="pagination pagination-top" aria-label="Search result pages">
+                  <button type="button" onClick={() => changePage(currentPage - 1)} disabled={currentPage === 1}>← PREVIOUS</button>
+                  <span>PAGE <b>{currentPage}</b> / {totalPages}</span>
+                  <button type="button" onClick={() => changePage(currentPage + 1)} disabled={currentPage === totalPages}>NEXT →</button>
+                </nav>
+              )}
+            </div>
             <div className="results-grid">{paginatedResults.map((weapon) => <WeaponCard key={weapon.id} weapon={weapon} />)}</div>
             {totalPages > 1 && (
               <nav className="pagination" aria-label="Search result pages">
