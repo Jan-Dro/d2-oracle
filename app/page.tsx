@@ -25,6 +25,7 @@ type Weapon = {
 };
 
 const weapons = godRollData.weapons as Weapon[];
+const RESULTS_PER_PAGE = 24;
 const availableWeapons = weapons.filter((weapon) => weapon.rollStatus === "available");
 const tierWeight: Record<string, number> = { "S+": 5, S: 4, A: 3, B: 2, C: 1 };
 const featured = [...availableWeapons]
@@ -101,6 +102,7 @@ function WeaponCard({ weapon, featuredCard = false }: { weapon: Weapon; featured
 export default function Home() {
   const [query, setQuery] = useState("");
   const [submitted, setSubmitted] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
 
   const results = useMemo(() => {
     const normalized = submitted.toLowerCase().trim();
@@ -109,18 +111,31 @@ export default function Home() {
     return weapons.filter((weapon) => {
       const rollText = weapon.rolls.flatMap((roll) => [roll.mode, roll.heading, ...Object.keys(roll.fields), ...Object.values(roll.fields).flat()]).join(" ");
       const haystack = `${weapon.weapon} ${weapon.type} ${weapon.ammo} ${weapon.element} ${weapon.tier.rank} ${weapon.excels.join(" ")} ${weapon.acquisitionSource} ${rollText}`.toLowerCase();
-      return terms.every((term) => haystack.includes(term));
-    }).slice(0, 24);
+      return terms.every((term) => {
+        if (term === "pve" || term === "pvp") return weapon.rolls.some((roll) => roll.mode === term);
+        return haystack.includes(term);
+      });
+    });
   }, [submitted]);
+
+  const totalPages = Math.ceil(results.length / RESULTS_PER_PAGE);
+  const paginatedResults = results.slice((currentPage - 1) * RESULTS_PER_PAGE, currentPage * RESULTS_PER_PAGE);
+
+  function changePage(page: number) {
+    setCurrentPage(page);
+    requestAnimationFrame(() => document.getElementById("results")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }
 
   function search(event: FormEvent) {
     event.preventDefault();
+    setCurrentPage(1);
     setSubmitted(query);
     requestAnimationFrame(() => document.getElementById("results")?.scrollIntoView({ behavior: "smooth", block: "start" }));
   }
 
   function quickSearch(value: string) {
     setQuery(value);
+    setCurrentPage(1);
     setSubmitted(value);
     requestAnimationFrame(() => document.getElementById("results")?.scrollIntoView({ behavior: "smooth", block: "start" }));
   }
@@ -162,10 +177,19 @@ export default function Home() {
       {submitted && (
         <section className="results-section" id="results" aria-live="polite">
           <div className="section-heading">
-            <div><span>QUERY RESULT</span><h2>{results.length ? `${results.length}${results.length === 24 ? "+" : ""} WEAPONS FOUND` : "NO EXACT MATCH"}</h2></div>
+            <div><span>QUERY RESULT</span><h2>{results.length ? `${results.length} WEAPONS FOUND` : "NO EXACT MATCH"}</h2></div>
             <p>SEARCH: “{submitted}”</p>
           </div>
-          {results.length ? <div className="results-grid">{results.map((weapon) => <WeaponCard key={weapon.id} weapon={weapon} />)}</div> : (
+          {results.length ? <>
+            <div className="results-grid">{paginatedResults.map((weapon) => <WeaponCard key={weapon.id} weapon={weapon} />)}</div>
+            {totalPages > 1 && (
+              <nav className="pagination" aria-label="Search result pages">
+                <button type="button" onClick={() => changePage(currentPage - 1)} disabled={currentPage === 1}>← PREVIOUS</button>
+                <span>PAGE <b>{currentPage}</b> / {totalPages}</span>
+                <button type="button" onClick={() => changePage(currentPage + 1)} disabled={currentPage === totalPages}>NEXT →</button>
+              </nav>
+            )}
+          </> : (
             <div className="no-results"><span>NO SIGNAL</span><h3>The archive couldn’t resolve that query.</h3><p>Try a weapon name, perk, element, weapon type, activity, or acquisition source.</p></div>
           )}
         </section>
@@ -182,7 +206,7 @@ export default function Home() {
         <div className="steps">
           <p><b>01</b><span>Search by weapon, archetype, activity, element, perk, or source.</span></p>
           <p><b>02</b><span>Compare structured perk recommendations for PVE and PVP.</span></p>
-          <p><b>03</b><span>Open the source guide for complete farming and build details.</span></p>
+          <p><b>03</b><span>Lock your target roll and return to the fight.</span></p>
         </div>
       </section>
 
