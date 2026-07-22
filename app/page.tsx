@@ -24,6 +24,8 @@ type Weapon = {
   rolls: Roll[];
 };
 
+type ActivityFilter = "all" | "pve" | "pvp";
+
 const weapons = godRollData.weapons as Weapon[];
 const RESULTS_PER_PAGE = 24;
 const availableWeapons = weapons.filter((weapon) => weapon.rollStatus === "available");
@@ -41,10 +43,11 @@ function rollPerks(roll?: Roll) {
   return Object.entries(roll.fields).map(([slot, values]) => ({ slot: slot.replace(/:$/, ""), value: values.join(" / ") }));
 }
 
-function WeaponCard({ weapon, featuredCard = false }: { weapon: Weapon; featuredCard?: boolean }) {
+function WeaponCard({ weapon, featuredCard = false, preferredMode = "all" }: { weapon: Weapon; featuredCard?: boolean; preferredMode?: ActivityFilter }) {
   const modeRolls = weapon.rolls.filter((roll) => roll.mode === "pve" || roll.mode === "pvp");
   const fallbackRoll = preferredRoll(weapon);
-  const [activeMode, setActiveMode] = useState(fallbackRoll?.mode ?? "general");
+  const filteredRoll = preferredMode === "all" ? undefined : modeRolls.find((roll) => roll.mode === preferredMode);
+  const [activeMode, setActiveMode] = useState(filteredRoll?.mode ?? fallbackRoll?.mode ?? "general");
   const roll = modeRolls.find((candidate) => candidate.mode === activeMode) ?? fallbackRoll;
   const perks = rollPerks(roll);
 
@@ -103,8 +106,9 @@ export default function Home() {
   const [query, setQuery] = useState("");
   const [submitted, setSubmitted] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [activityFilter, setActivityFilter] = useState<ActivityFilter>("all");
 
-  const results = useMemo(() => {
+  const searchResults = useMemo(() => {
     const normalized = submitted.toLowerCase().trim();
     if (!normalized) return [];
     const terms = normalized.split(/\s+/);
@@ -118,6 +122,19 @@ export default function Home() {
     });
   }, [submitted]);
 
+  const activityCounts = useMemo(() => ({
+    all: searchResults.length,
+    pve: searchResults.filter((weapon) => weapon.excels.some((mode) => mode.toLowerCase() === "pve")).length,
+    pvp: searchResults.filter((weapon) => weapon.excels.some((mode) => mode.toLowerCase() === "pvp")).length,
+  }), [searchResults]);
+
+  const results = useMemo(() => {
+    if (activityFilter === "all") return searchResults;
+    return searchResults
+      .filter((weapon) => weapon.excels.some((mode) => mode.toLowerCase() === activityFilter))
+      .sort((a, b) => Number(b.excels.length === 1) - Number(a.excels.length === 1));
+  }, [activityFilter, searchResults]);
+
   const totalPages = Math.ceil(results.length / RESULTS_PER_PAGE);
   const paginatedResults = results.slice((currentPage - 1) * RESULTS_PER_PAGE, currentPage * RESULTS_PER_PAGE);
 
@@ -126,9 +143,15 @@ export default function Home() {
     requestAnimationFrame(() => document.getElementById("results")?.scrollIntoView({ behavior: "smooth", block: "start" }));
   }
 
+  function filterByActivity(filter: ActivityFilter) {
+    setActivityFilter(filter);
+    setCurrentPage(1);
+  }
+
   function search(event: FormEvent) {
     event.preventDefault();
     setCurrentPage(1);
+    setActivityFilter("all");
     setSubmitted(query);
     requestAnimationFrame(() => document.getElementById("results")?.scrollIntoView({ behavior: "smooth", block: "start" }));
   }
@@ -136,6 +159,7 @@ export default function Home() {
   function quickSearch(value: string) {
     setQuery(value);
     setCurrentPage(1);
+    setActivityFilter("all");
     setSubmitted(value);
     requestAnimationFrame(() => document.getElementById("results")?.scrollIntoView({ behavior: "smooth", block: "start" }));
   }
@@ -177,21 +201,32 @@ export default function Home() {
       {submitted && (
         <section className="results-section" id="results" aria-live="polite">
           <div className="section-heading">
-            <div><span>QUERY RESULT</span><h2>{results.length ? `${results.length} WEAPONS FOUND` : "NO EXACT MATCH"}</h2></div>
+            <div><span>QUERY RESULT</span><h2>{searchResults.length ? `${results.length} WEAPONS FOUND` : "NO EXACT MATCH"}</h2></div>
             <p>SEARCH: “{submitted}”</p>
           </div>
-          {results.length ? <>
+          {searchResults.length ? <>
             <div className="results-toolbar">
-              <span>SHOWING {(currentPage - 1) * RESULTS_PER_PAGE + 1}–{Math.min(currentPage * RESULTS_PER_PAGE, results.length)} OF {results.length}</span>
-              {totalPages > 1 && (
-                <nav className="pagination pagination-top" aria-label="Search result pages">
-                  <button type="button" onClick={() => changePage(currentPage - 1)} disabled={currentPage === 1}>← PREVIOUS</button>
-                  <span>PAGE <b>{currentPage}</b> / {totalPages}</span>
-                  <button type="button" onClick={() => changePage(currentPage + 1)} disabled={currentPage === totalPages}>NEXT →</button>
-                </nav>
-              )}
+              <div className="activity-filters" role="group" aria-label="Filter by preferred activity">
+                {(["all", "pve", "pvp"] as ActivityFilter[]).map((filter) => (
+                  <button type="button" className={activityFilter === filter ? `active ${filter}` : ""} aria-pressed={activityFilter === filter} onClick={() => filterByActivity(filter)} key={filter}>
+                    {filter.toUpperCase()} <span>{activityCounts[filter]}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="results-meta">
+                <span>{results.length ? `SHOWING ${(currentPage - 1) * RESULTS_PER_PAGE + 1}–${Math.min(currentPage * RESULTS_PER_PAGE, results.length)} OF ${results.length}` : "NO PREFERRED WEAPONS"}</span>
+                {totalPages > 1 && (
+                  <nav className="pagination pagination-top" aria-label="Search result pages">
+                    <button type="button" onClick={() => changePage(currentPage - 1)} disabled={currentPage === 1}>← PREVIOUS</button>
+                    <span>PAGE <b>{currentPage}</b> / {totalPages}</span>
+                    <button type="button" onClick={() => changePage(currentPage + 1)} disabled={currentPage === totalPages}>NEXT →</button>
+                  </nav>
+                )}
+              </div>
             </div>
-            <div className="results-grid">{paginatedResults.map((weapon) => <WeaponCard key={weapon.id} weapon={weapon} />)}</div>
+            {results.length ? <div className="results-grid">{paginatedResults.map((weapon) => <WeaponCard key={`${weapon.id}-${activityFilter}`} weapon={weapon} preferredMode={activityFilter} />)}</div> : (
+              <div className="no-results compact"><span>NO {activityFilter.toUpperCase()} SIGNAL</span><h3>No preferred weapons in this result.</h3><p>Choose All or another activity to continue browsing.</p></div>
+            )}
             {totalPages > 1 && (
               <nav className="pagination" aria-label="Search result pages">
                 <button type="button" onClick={() => changePage(currentPage - 1)} disabled={currentPage === 1}>← PREVIOUS</button>
