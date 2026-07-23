@@ -1,0 +1,16 @@
+{
+  "name": "blueberries-god-rolls",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "scrape": "node src/scrape.mjs",
+    "enrich": "node src/enrich.mjs",
+    "audit": "node src/audit.mjs",
+    "query": "node src/query.mjs",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
